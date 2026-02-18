@@ -1,0 +1,45 @@
+# Binary builds
+bin/
+out/
+dist/
+product-catalog-service
+
+# Environment variables
+.env
+.env.local
+
+# Go specific
+vendor/
+go.sum
+*.test
+*.out
+coverage.txt
+
+# IDE - VS Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# IDE - JetBrains (GoLand/IntelliJ)
+.idea/
+*.iw
+*.iws
+out/
+
+# OS Specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Protobuf generated files (Optional: keep if you want others to build without protoc)
+# *.pb.go
+
+# Docker
+.docker/
