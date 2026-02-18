@@ -1,17 +1,18 @@
 # Product Catalog Service
 
-A high-performance, domain-driven microservice for managing product catalogs and pricing, built with **Go**, **gRPC**, and **Google Cloud Spanner**.
+A clean architecture implementation of a product catalog service using **Go**, **gRPC**, and **Google Cloud Spanner**. This service is designed for high-precision pricing and reliable state transitions.
 
-## 🏗 Architectural Overview
+## 🏗 Architecture & Design Patterns
 
-This service follows **Clean Architecture** and **Domain-Driven Design (DDD)** principles. It implements the **Golden Mutation Pattern** and the **Transactional Outbox Pattern** to ensure strict data consistency and reliable event publishing.
+This service is built using **Domain-Driven Design (DDD)** and **Clean Architecture** to ensure maintainability and testability.
 
-### Key Design Decisions
+### Core Patterns
 
-- **Domain Purity**: The `internal/app/product/domain` layer has zero external dependencies (no Spanner, no Proto, no Context).
-- **Precision Arithmetic**: All financial calculations use `math/big.Rat` to prevent floating-point errors.
-- **Atomic Mutations**: Using `CommitPlan` to batch business logic changes and outbox events into a single Spanner transaction.
-- **CQRS**: Command logic is encapsulated in the domain aggregate, while Queries (Read Models) are optimized for performance.
+- **Domain Purity (CRITICAL)**: The core domain layer has zero external dependencies. It contains pure Go business logic, protecting it from infrastructure changes.
+- **Golden Mutation Pattern**: Every write operation follows a strict atomic flow: `Load Aggregate` -> `Mutate State` -> `Collect Mutations` -> `Apply Plan`.
+- **CQRS**: Commands (writes) go through the domain aggregate and repositories, while Queries (reads) use optimized read models to bypass aggregate overhead.
+- **Transactional Outbox**: Business state changes and event intents are persisted in a single Spanner transaction, ensuring 100% reliable event publishing.
+- **High-Precision Pricing**: All monetary calculations use `math/big.Rat` (stored as numerator/denominator) to ensure zero rounding errors.
 
 ---
 
@@ -21,68 +22,100 @@ This service follows **Clean Architecture** and **Domain-Driven Design (DDD)** p
 
 - Go 1.21+
 - Docker & Docker Compose
-- `protoc` (for generating gRPC code)
+- `protoc` (Protocol Buffers compiler)
 
-### 1. Start Infrastructure
+### 1. Environment Setup
 
-Run the Google Cloud Spanner emulator:
+The service is designed to run against the Google Cloud Spanner emulator for local development.
 
 ```bash
+# Start the Spanner emulator
 docker-compose up -d
+
+# Initialize the emulator (create instance/database)
+make init-emulator
 
 ```
 
-### 2. Run Migrations
+### 2. Database Migrations
 
-(Ensure you have the Spanner CLI or a migration tool configured to point to `localhost:9010`)
+Run the schema DDL against the emulator to create the `products` and `outbox_events` tables.
 
 ```bash
 make migrate
 
 ```
 
-### 3. Run Tests (E2E)
-
-The tests verify the full flow: Aggregate Logic -> Mutation Generation -> Spanner Persistence -> Outbox Event Creation.
+### 3. Build & Run
 
 ```bash
-go test ./tests/e2e/... -v
+# Generate gRPC code from proto
+make proto
 
-```
-
-### 4. Start the gRPC Server
-
-```bash
+# Run the gRPC server
 go run cmd/server/main.go
 
 ```
 
 ---
 
-## 🛠 Project Structure
+## 🧪 Testing
 
-- `internal/app/product/domain`: Pure business logic, Aggregates, and Value Objects.
-- `internal/app/product/usecases`: Application logic (Interactors) that orchestrate the Golden Mutation Pattern.
-- `internal/app/product/repo`: Spanner-specific implementations that return Mutations.
-- `pkg/committer`: Wrapper for the atomic `CommitPlan` execution.
-- `proto/`: gRPC API definitions.
+The service includes a comprehensive E2E test suite that verifies the entire flow from usecase to the Spanner emulator, including business rule validation (e.g., "Cannot discount an inactive product").
+
+```bash
+# Run all tests (Unit + E2E)
+go test -v ./...
+
+```
+
+---
+
+## 📁 Project Structure
+
+```text
+product-catalog-service/
+├── cmd/server/             # Main entry point
+├── internal/
+│   ├── app/product/
+│   │   ├── domain/         # Pure domain aggregates & business logic
+│   │   ├── usecases/       # Interactors (Golden Mutation Pattern)
+│   │   ├── queries/        # Optimized read models (CQRS)
+│   │   └── contracts/      # Interfaces for repositories & committer
+│   ├── pkg/
+│   │   ├── committer/      # Atomic CommitPlan wrapper
+│   │   └── clock/          # Time abstractions for testability
+│   ├── repo/               # Spanner repository implementations
+│   └── transport/grpc/     # Thin gRPC handlers & error mapping
+├── proto/                  # Protocol Buffer definitions
+├── migrations/             # Spanner DDL scripts
+└── tests/e2e/              # Integration tests against emulator
+
+```
 
 ---
 
 ## 📡 API Endpoints (gRPC)
 
-| Method          | Description                                               |
-| --------------- | --------------------------------------------------------- |
-| `CreateProduct` | Initializes a new product in the catalog.                 |
-| `ApplyDiscount` | Applies a percentage-based discount with date validation. |
-| `ListProducts`  | Paginated query for active products.                      |
-| `GetProduct`    | Fetches a product with its current effective price.       |
+### Commands
+
+- `CreateProduct`: Creates a new product (Default: Inactive).
+- `UpdateProduct`: Updates basic product details.
+- `ActivateProduct`: Enables the product for sale and discounts.
+- `ApplyDiscount`: Attaches a percentage-based discount with start/end dates.
+
+### Queries
+
+- `GetProduct`: Retrieves a product with its **Effective Price** (Base - Active Discount).
+- `ListProducts`: Paginated listing with category filtering.
 
 ---
 
-## 📝 License
+## ⚖️ Trade-offs & Decisions
 
-Proprietary / Test Task
+- **No Background Processor**: As per requirements, outbox events are stored but not dispatched. In a production system, a separate worker would poll or stream the `outbox_events` table.
+- **Change Tracking**: The aggregate uses a `ChangeTracker` to ensure `UpdateMut` only touches modified columns, reducing Spanner write load.
+- **Graceful Shutdown**: The server handles `SIGTERM` to allow active Spanner sessions and gRPC calls to finish cleanly.
 
 ```
 
