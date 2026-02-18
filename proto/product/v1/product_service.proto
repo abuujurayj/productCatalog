@@ -1,0 +1,133 @@
+syntax = "proto3";
+
+package product.v1;
+
+// Updated to match your specific repository path
+option go_package = "github.com/abuujurayj/productCatalog/gen/go/product/v1;productv1";
+
+import "google/protobuf/timestamp.proto";
+
+service ProductService {
+    // Commands
+    rpc CreateProduct(CreateProductRequest) returns (CreateProductReply);
+    rpc UpdateProduct(UpdateProductRequest) returns (UpdateProductReply);
+    rpc ActivateProduct(ActivateProductRequest) returns (ActivateProductReply);
+    rpc DeactivateProduct(DeactivateProductRequest) returns (DeactivateProductReply);
+    rpc ApplyDiscount(ApplyDiscountRequest) returns (ApplyDiscountReply);
+    rpc RemoveDiscount(RemoveDiscountRequest) returns (RemoveDiscountReply);
+
+    // Queries
+    rpc GetProduct(GetProductRequest) returns (GetProductReply);
+    rpc ListProducts(ListProductsRequest) returns (ListProductsReply);
+}
+
+enum ProductStatus {
+    PRODUCT_STATUS_UNSPECIFIED = 0;
+    PRODUCT_STATUS_ACTIVE = 1;
+    PRODUCT_STATUS_INACTIVE = 2;
+    PRODUCT_STATUS_ARCHIVED = 3;
+}
+
+message Money {
+    int64 numerator = 1;
+    int64 denominator = 2;
+}
+
+message Product {
+    string id = 1;
+    string name = 2;
+    string description = 3;
+    string category = 4;
+    int64 base_price_numerator = 5;
+    int64 base_price_denominator = 6;
+    ProductStatus status = 7;
+    
+    // Discount info
+    optional string discount_percent = 8;
+    google.protobuf.Timestamp discount_start_date = 9;
+    google.protobuf.Timestamp discount_end_date = 10;
+
+    google.protobuf.Timestamp created_at = 11;
+    google.protobuf.Timestamp updated_at = 12;
+    
+    // Read-model specific: Calculated price for the UI
+    string effective_price_display = 13; 
+}
+
+// --- Request/Response Messages ---
+
+message CreateProductRequest {
+    string name = 1;
+    string description = 2;
+    string category = 3;
+    Money base_price = 4;
+}
+
+message CreateProductReply {
+    string product_id = 1;
+}
+
+message UpdateProductRequest {
+    string id = 1;
+    optional string name = 2;
+    optional string description = 3;
+    optional string category = 4;
+}
+
+message UpdateProductReply {
+    string product_id = 1;
+}
+
+message ActivateProductRequest {
+    string id = 1;
+}
+
+message ActivateProductReply {
+    bool success = 1;
+}
+
+message DeactivateProductRequest {
+    string id = 1;
+}
+
+message DeactivateProductReply {
+    bool success = 1;
+}
+
+message ApplyDiscountRequest {
+    string product_id = 1;
+    string percent = 2; // Precise decimal as string
+    google.protobuf.Timestamp start_date = 3;
+    google.protobuf.Timestamp end_date = 4;
+}
+
+message ApplyDiscountReply {
+    bool success = 1;
+}
+
+message RemoveDiscountRequest {
+    string product_id = 1;
+}
+
+message RemoveDiscountReply {
+    bool success = 1;
+}
+
+message GetProductRequest {
+    string id = 1;
+}
+
+message GetProductReply {
+    Product product = 1;
+}
+
+message ListProductsRequest {
+    int32 page_size = 1;
+    string page_token = 2;
+    optional string category = 3;
+}
+
+message ListProductsReply {
+    repeated Product products = 1;
+    string next_page_token = 2;
+}
