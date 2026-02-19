@@ -1,0 +1,1 @@
+package activate_product

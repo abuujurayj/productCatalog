@@ -10,10 +10,10 @@ type OutboxRow struct {
 	EventID     string    `spanner:"event_id"`
 	EventType   string    `spanner:"event_type"`
 	AggregateID string    `spanner:"aggregate_id"`
-	Payload     string    `spanner:"payload"` // JSON string
+	Payload     spanner.NullJSON    `spanner:"payload"` // Must be NullJSON for JSON columns
 	Status      string    `spanner:"status"`
 	CreatedAt   time.Time `spanner:"created_at"`
-	ProcessedAt *spanner.NullTime `spanner:"processed_at"`
+	ProcessedAt spanner.NullTime `spanner:"processed_at"`
 }
 
 type Model struct{}

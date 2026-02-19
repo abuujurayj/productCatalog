@@ -21,7 +21,7 @@ type ProductRepository interface {
 	UpdateMut(product *domain.Product) *spanner.Mutation
 }
 
-type OutboxRepository interface {
-	// CreateEventMut generates a mutation for a single domain event
-	CreateEventMut(event domain.DomainEvent) *spanner.Mutation
-}
+// type OutboxRepository interface {
+// 	// CreateEventMut generates a mutation for a single domain event
+// 	CreateEventMut(event domain.DomainEvent) *spanner.Mutation
+// }

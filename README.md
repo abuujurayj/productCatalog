@@ -30,7 +30,7 @@ The service is designed to run against the Google Cloud Spanner emulator for loc
 
 ```bash
 # Start the Spanner emulator
-docker-compose up -d
+docker compose up -d
 
 # Initialize the emulator (create instance/database)
 make init-emulator

@@ -1,8 +1,6 @@
 package repo
 
 import (
-	"encoding/json"
-
 	"product-catalog-service/internal/app/product/domain"
 	"product-catalog-service/internal/models/m_outbox"
 
@@ -22,7 +20,6 @@ func NewOutboxRepository() *outboxRepo {
 
 func (r *outboxRepo) InsertMut(event domain.DomainEvent, metadata map[string]interface{}) *spanner.Mutation {
 	// Create an "Envelope" for the event. 
-	// This ensures the consumer always has a consistent JSON structure.
 	envelope := struct {
 		Event    domain.DomainEvent     `json:"event"`
 		Metadata map[string]interface{} `json:"metadata"`
@@ -31,16 +28,20 @@ func (r *outboxRepo) InsertMut(event domain.DomainEvent, metadata map[string]int
 		Metadata: metadata,
 	}
 
-	payloadBytes, _ := json.Marshal(envelope)
-
+	// Spanner's JSON type can accept structs directly if using the spanner.NullJSON
+	// or it can be handled via the row mapping if m_outbox.OutboxRow is configured correctly.
 	row := &m_outbox.OutboxRow{
 		EventID:     uuid.New().String(),
 		EventType:   event.EventType(),
 		AggregateID: event.AggregateID(),
-		Payload:     string(payloadBytes),
-		Status:      "pending", // Matches initial_schema.sql logic
+		// Use NullJSON to correctly map to the JSON column type in your SQL
+		Payload: spanner.NullJSON{
+			Value: envelope,
+			Valid: true,
+		},
+		Status:      "pending", 
 		CreatedAt:   event.OccurredAt(),
-		ProcessedAt: &spanner.NullTime{Valid: false},
+		ProcessedAt: spanner.NullTime{Valid: false},
 	}
 
 	return r.dbModel.InsertMut(row.EventID, row)
